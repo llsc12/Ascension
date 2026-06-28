@@ -168,6 +168,9 @@ public abstract class RequiredLinkingModule<T extends DiscordSRV> extends Abstra
     }
 
     private void updateBypassFromStorage() {
+        if (discordSRV.storage() == null) {
+            return;
+        }
         Set<UUID> bypass = discordSRV.storage().getRequiredLinkingBypass();
         synchronized (this.storageBypass) {
             storageBypass.clear();
