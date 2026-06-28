@@ -49,3 +49,4 @@ neoforge/versions/**/runs
 
 # Fabric src links
 /fabric/versions/*/src
+.DS_Store
