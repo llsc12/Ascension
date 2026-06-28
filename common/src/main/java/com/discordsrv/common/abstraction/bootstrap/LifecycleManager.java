@@ -32,6 +32,8 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 
 /**
@@ -114,8 +116,8 @@ public class LifecycleManager {
         }
 
         try {
-            discordSRV.runDisable().get(/*15, TimeUnit.SECONDS*/);
-        } catch (InterruptedException/* | TimeoutException*/ e) {
+            discordSRV.runDisable().get(15, TimeUnit.SECONDS);
+        } catch (InterruptedException | TimeoutException e) {
             logger.warning("Timed out/interrupted shutting down DiscordSRV");
         } catch (ExecutionException e) {
             logger.error("Failed to disable", e.getCause());
