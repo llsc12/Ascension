@@ -118,13 +118,17 @@ public class MentionGameRenderingModule extends AbstractModule<DiscordSRV> {
             return;
         }
 
-        updateMentionSuggestions(event.player());
+        updateMentionSuggestions();
     }
 
     @Subscribe
     public void onPlayerDisconnected(PlayerDisconnectedEvent event) {
         synchronized (currentSuggestions) {
             currentSuggestions.remove(event.player().uniqueId());
+        }
+
+        if (isChatSuggestionsEnabledInAny()) {
+            updateMentionSuggestions();
         }
     }
 
@@ -152,26 +156,35 @@ public class MentionGameRenderingModule extends AbstractModule<DiscordSRV> {
     }
 
     private void updateMentionSuggestions() {
+        List<Mention> mentions = new ArrayList<>(512);
+
         MentionCachingModule module = discordSRV.getModule(MentionCachingModule.class);
-        if (module == null) {
-            return;
+        if (module != null) {
+            BaseChannelConfig config = discordSRV.channelConfig().resolveDefault();
+            List<DiscordGuild> guilds = getGuilds(config);
+
+            for (DiscordGuild discordGuild : guilds) {
+                Guild guild = discordGuild.asJDA();
+                if (guilds.size() == 1) {
+                    mentions.addAll(module.getMemberCache().getGuildCache(guild).values());
+                }
+                mentions.addAll(module.getChannelCache().getGuildCache(guild).values());
+                
+                // Special roles
+                mentions.addAll(module.getRoleCache().getGuildCache(guild).values());
+                mentions.add(module.getEveryoneRole(guild));
+                mentions.add(module.getHereRole(guild));
+            }
         }
 
-        BaseChannelConfig config = discordSRV.channelConfig().resolveDefault();
-        List<DiscordGuild> guilds = getGuilds(config);
-
-        List<Mention> mentions = new ArrayList<>(512);
-        for (DiscordGuild discordGuild : guilds) {
-            Guild guild = discordGuild.asJDA();
-            if (guilds.size() == 1) {
-                mentions.addAll(module.getMemberCache().getGuildCache(guild).values());
+        if (isEnabledInAny(config -> config.mentions.players && config.mentions.suggestMentionsCompletionsInGame)) {
+            for (IPlayer player : discordSRV.playerProvider().allPlayers()) {
+                if (player == null || player.username() == null) { continue; }
+                String name = player.username();
+                if (name != null) {
+                    mentions.add(new Mention(name, true));
+                }
             }
-            mentions.addAll(module.getChannelCache().getGuildCache(guild).values());
-
-            mentions.addAll(module.getRoleCache().getGuildCache(guild).values());
-            // Special roles
-            mentions.add(module.getEveryoneRole(guild));
-            mentions.add(module.getHereRole(guild));
         }
 
         synchronized (allMentionSuggestions) {
@@ -215,15 +228,7 @@ public class MentionGameRenderingModule extends AbstractModule<DiscordSRV> {
         }
 
         MentionCachingModule module = discordSRV.getModule(MentionCachingModule.class);
-        if (module == null) {
-            return;
-        }
-
-        List<DiscordGuild> guilds = getGuilds(config);
-        if (guilds.isEmpty()) {
-            return;
-        }
-
+        List<DiscordGuild> guilds = module != null ? getGuilds(config) : Collections.emptyList();
         DiscordGuild singleGuild = guilds.size() == 1 ? guilds.get(0) : null;
 
         LinkProvider linkProvider = discordSRV.linkProvider();
@@ -236,7 +241,7 @@ public class MentionGameRenderingModule extends AbstractModule<DiscordSRV> {
 
         Component message = ComponentUtil.fromAPI(event.getMessage());
         String messageContent = discordSRV.componentFactory().plainSerializer().serialize(message);
-
+        
         Set<Member> lookedUpMembers = singleGuild != null ? null : new CopyOnWriteArraySet<>();
         List<Mention> mentions = new ArrayList<>();
         for (DiscordGuild guild : guilds) {
@@ -253,6 +258,23 @@ public class MentionGameRenderingModule extends AbstractModule<DiscordSRV> {
                             lookedUpMembers
                     ).join()
             );
+        }
+
+        if (config.minecraftToDiscord.mentions.players) {
+            for (IPlayer onlinePlayer : discordSRV.playerProvider().allPlayers()) {
+                if (onlinePlayer == null || onlinePlayer.username() == null) { continue; }
+                String name = onlinePlayer.username();
+                if (messageContent.contains("@" + name)) {
+                    Mention playerMention = new Mention(name, true);
+                    if (!mentions.contains(playerMention)) {
+                        mentions.add(playerMention);
+                    }
+                }
+            }
+        }
+
+        if (mentions.isEmpty()) {
+            return;
         }
 
         Set<DiscordGuildMember> members;
@@ -287,6 +309,11 @@ public class MentionGameRenderingModule extends AbstractModule<DiscordSRV> {
                 return discordSRV.componentFactory().makeEveryoneRoleMention(mention.id(), config);
             case HERE:
                 return discordSRV.componentFactory().makeHereRoleMention(mention.id(), config);
+            case PLAYER: {
+                String playerName = mention.plain().substring(1); // strip leading "@"
+                IPlayer mentionedPlayer = discordSRV.playerProvider().player(playerName);
+                return discordSRV.componentFactory().makePlayerMention(playerName, mentionedPlayer, config.minecraftToDiscord.mentions);
+            }
         }
         return Component.text(mention.plain());
     }

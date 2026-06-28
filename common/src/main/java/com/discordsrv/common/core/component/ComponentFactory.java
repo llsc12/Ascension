@@ -29,6 +29,8 @@ import com.discordsrv.api.discord.entity.guild.DiscordGuildMember;
 import com.discordsrv.api.discord.entity.guild.DiscordRole;
 import com.discordsrv.api.events.message.render.game.CustomEmojiRenderEvent;
 import com.discordsrv.common.DiscordSRV;
+import com.discordsrv.common.abstraction.player.IPlayer;
+import com.discordsrv.common.config.main.channels.MinecraftToDiscordChatConfig;
 import com.discordsrv.common.config.main.channels.base.BaseChannelConfig;
 import com.discordsrv.common.config.main.generic.MentionsConfig;
 import com.discordsrv.common.core.component.renderer.DiscordSRVMinecraftRenderer;
@@ -277,6 +279,18 @@ public class ComponentFactory implements MinecraftComponentFactory {
                         .addContext(role, config)
                         .build()
         ));
+    }
+
+    public Component makePlayerMention(String playerName, @Nullable IPlayer player, MinecraftToDiscordChatConfig.Mentions mentionConfig) {
+        String format = mentionConfig.playerMentionFormat;
+        if (player == null) {
+            format = format.replace("%player_name%", playerName).replace("%player_display_name%", playerName);
+        }
+        return ComponentUtil.fromAPI(
+                textBuilder(format)
+                        .addContext(player)
+                        .build()
+        );
     }
 
     public Component makeEmoteMention(long id, MentionsConfig.EmoteBehaviour behaviour) {

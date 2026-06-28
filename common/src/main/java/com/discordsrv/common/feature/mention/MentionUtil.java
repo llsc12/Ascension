@@ -56,6 +56,9 @@ public final class MentionUtil {
             case USER: {
                 return player.hasPermission(Permissions.MENTION_USER_ALL);
             }
+            case PLAYER: {
+                return true;
+            }
             case EVERYONE:
             case HERE:
                 return isEveryoneMentionAllowed(config, player);

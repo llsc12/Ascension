@@ -19,8 +19,10 @@
 package com.discordsrv.modded.module.chat;
 
 import com.discordsrv.api.events.message.preprocess.game.GameChatMessagePreProcessEvent;
+import com.discordsrv.api.events.message.render.game.GameChatRenderEvent;
 import com.discordsrv.common.feature.channel.global.GlobalChannel;
 import com.discordsrv.common.util.ComponentUtil;
+import com.discordsrv.modded.ModdedComponentFactory;
 import com.discordsrv.modded.ModdedDiscordSRV;
 import com.discordsrv.modded.module.AbstractModdedModule;
 import net.kyori.adventure.text.Component;
@@ -44,6 +46,7 @@ public class ModdedChatModule extends AbstractModdedModule {
         INSTANCE = this;
         //? if fabric
         net.fabricmc.fabric.api.message.v1.ServerMessageEvents.CHAT_MESSAGE.register((message, player, type) -> onChatMessage(message.signedContent(), player.getUUID()));
+        net.fabricmc.fabric.api.message.v1.ServerMessageDecoratorEvent.EVENT.register(net.fabricmc.fabric.api.message.v1.ServerMessageDecoratorEvent.CONTENT_PHASE, (sender, message) -> onDecorateChat(sender, message));
 
         //? if neoforge
         //net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(net.neoforged.bus.api.EventPriority.LOWEST, true, (net.neoforged.neoforge.event.ServerChatEvent event) -> onChatMessage(event.getMessage(), event.getPlayer().getUUID(), event.isCanceled()));
@@ -53,6 +56,38 @@ public class ModdedChatModule extends AbstractModdedModule {
     /*public void onChatMessage(net.minecraft.network.chat.ChatMessageContent content, UUID uuid) {
         onChatMessage(content.decorated(), uuid);
     }*///?}
+
+    private net.minecraft.network.chat.Component onDecorateChat(
+            net.minecraft.server.level.ServerPlayer sender,
+            net.minecraft.network.chat.Component message
+    ) {
+        if (!enabled || sender == null) {
+            return message;
+        }
+
+        com.discordsrv.common.abstraction.player.IPlayer player = discordSRV.playerProvider().player(sender.getUUID());
+        if (player == null) {
+            return message;
+        }
+
+        ModdedComponentFactory factory = (ModdedComponentFactory) discordSRV.componentFactory();
+        Component adventureMessage = factory.fromNative(message);
+
+        GameChatRenderEvent event = new GameChatRenderEvent(
+                null, 
+                player, 
+                new GlobalChannel(discordSRV), 
+                ComponentUtil.toAPI(adventureMessage)
+        );
+        discordSRV.eventBus().publish(event);
+
+        if (!event.isProcessed()) {
+            return message;
+        }
+
+        Component processed = ComponentUtil.fromAPI(event.getAnnotatedMessage());
+        return factory.toNative(processed);
+    }
 
     public void onChatMessage(String message, UUID uuid) {
         onChatMessage(net.minecraft.network.chat.Component.nullToEmpty(message), uuid, false);

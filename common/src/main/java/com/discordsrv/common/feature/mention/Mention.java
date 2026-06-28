@@ -87,6 +87,18 @@ public class Mention {
         );
     }
 
+    public Mention(String playerName, boolean forPlayer) {
+        this(
+                "@" + playerName,
+                "@" + playerName,
+                Type.PLAYER,
+                (long) playerName.hashCode(),
+                true,
+                null,
+                null
+        );
+    }
+
     public Mention(
             String search,
             String mention,
@@ -165,6 +177,7 @@ public class Mention {
 
     public enum Type {
         USER(3),
+        PLAYER(3),
         CHANNEL(2),
         ROLE(2),
 

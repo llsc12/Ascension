@@ -116,8 +116,18 @@ public class MinecraftToDiscordChatConfig implements IMessageConfig {
                 + "The bot needs to have the \"Mention @everyone, @here and All Roles\" permission to trigger a notification")
         public boolean everyone = false;
 
+        @Comment("If Minecraft player mentions (@PlayerName) should be highlighted in Minecraft chat")
+        public boolean players = true;
+
+        @Comment("The format for Minecraft player mentions highlighted in Minecraft chat\n"
+                + "Suggested placeholders:\n"
+                + "%player_name% - The mentioned player's username\n"
+                + "%player_display_name% - The mentioned player's display name")
+        @Untranslated(Untranslated.Type.VALUE)
+        public String playerMentionFormat = "[color:yellow]@%player_name%";
+
         public boolean any() {
-            return roles || channels || users;
+            return roles || channels || users || players;
         }
     }
 }
